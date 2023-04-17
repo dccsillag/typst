@@ -131,7 +131,7 @@ pub struct OutlineElem {
 }
 
 impl Show for OutlineElem {
-    fn show(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Content> {
+    fn show(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Content> {
         let mut seq = vec![ParbreakElem::new().pack()];
         // Build the outline title.
         if let Some(title) = self.title(styles) {
@@ -154,7 +154,7 @@ impl Show for OutlineElem {
         let lang = TextElem::lang_in(styles);
 
         let mut ancestors: Vec<&Content> = vec![];
-        let elems = vt.introspector.query(&self.target(styles));
+        let elems = vm.introspector.query(&self.target(styles));
 
         for elem in &elems {
             let Some(refable) = elem.with::<dyn Refable>() else {
@@ -165,7 +165,7 @@ impl Show for OutlineElem {
                 continue;
             }
 
-            let Some(outline) = refable.outline(vt, lang)? else {
+            let Some(outline) = refable.outline(vm, lang)? else {
                 continue;
             };
 
@@ -190,8 +190,8 @@ impl Show for OutlineElem {
                     if let Some(numbering) = ancestor_refable.numbering() {
                         let numbers = ancestor_refable
                             .counter()
-                            .at(vt, ancestor.location().unwrap())?
-                            .display(vt, &numbering)?;
+                            .at(vm, ancestor.location().unwrap())?
+                            .display(vm, &numbering)?;
 
                         hidden += numbers + SpaceElem::new().pack();
                     };
@@ -206,7 +206,7 @@ impl Show for OutlineElem {
             // Add the outline of the element.
             seq.push(outline.linked(Destination::Location(location)));
 
-            let page_numbering = vt
+            let page_numbering = vm
                 .introspector
                 .page_numbering(location)
                 .cast::<Option<Numbering>>()
@@ -231,8 +231,8 @@ impl Show for OutlineElem {
 
             // Add the page number and linebreak.
             let page = Counter::new(CounterKey::Page)
-                .at(vt, location)?
-                .display(vt, &page_numbering)?;
+                .at(vm, location)?
+                .display(vm, &page_numbering)?;
 
             seq.push(page.linked(Destination::Location(location)));
             seq.push(LinebreakElem::new().pack());

@@ -10,7 +10,7 @@ use super::{Args, Dynamic, Module, Value, Vm};
 use crate::diag::SourceResult;
 use crate::doc::Document;
 use crate::geom::{Abs, Dir};
-use crate::model::{Content, ElemFunc, Introspector, Label, StyleChain, Styles, Vt};
+use crate::model::{Content, ElemFunc, Introspector, Label, StyleChain, Styles};
 use crate::syntax::Span;
 use crate::util::hash128;
 use crate::World;
@@ -33,7 +33,7 @@ pub struct Library {
 pub struct LangItems {
     /// The root layout function.
     pub layout:
-        fn(vt: &mut Vt, content: &Content, styles: StyleChain) -> SourceResult<Document>,
+        fn(vt: &mut Vm, content: &Content, styles: StyleChain) -> SourceResult<Document>,
     /// Access the em size.
     pub em: fn(StyleChain) -> Abs,
     /// Access the text direction.

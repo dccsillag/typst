@@ -62,7 +62,7 @@ pub struct PadElem {
 impl Layout for PadElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -77,7 +77,7 @@ impl Layout for PadElem {
         let mut backlog = vec![];
         let padding = sides.resolve(styles);
         let pod = regions.map(&mut backlog, |size| shrink(size, padding));
-        let mut fragment = self.body().layout(vt, styles, pod)?;
+        let mut fragment = self.body().layout(vm, styles, pod)?;
 
         for frame in &mut fragment {
             // Apply the padding inversely such that the grown size padded

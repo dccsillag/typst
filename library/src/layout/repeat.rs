@@ -36,12 +36,12 @@ pub struct RepeatElem {
 impl Layout for RepeatElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
         let pod = Regions::one(regions.size, Axes::new(false, false));
-        let piece = self.body().layout(vt, styles, pod)?.into_frame();
+        let piece = self.body().layout(vm, styles, pod)?.into_frame();
         let align = AlignElem::alignment_in(styles).x.resolve(styles);
 
         let fill = regions.size.x;

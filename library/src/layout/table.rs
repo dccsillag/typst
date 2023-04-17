@@ -124,7 +124,7 @@ pub struct TableElem {
 impl Layout for TableElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -143,7 +143,7 @@ impl Layout for TableElem {
 
                 let x = i % cols;
                 let y = i / cols;
-                if let Smart::Custom(alignment) = align.resolve(vt, x, y)? {
+                if let Smart::Custom(alignment) = align.resolve(vm, x, y)? {
                     child = child.styled(AlignElem::set_alignment(alignment));
                 }
 
@@ -156,7 +156,7 @@ impl Layout for TableElem {
 
         // Prepare grid layout by unifying content and gutter tracks.
         let layouter = GridLayouter::new(
-            vt,
+            vm,
             tracks.as_deref(),
             gutter.as_deref(),
             &cells,
@@ -200,7 +200,7 @@ impl Layout for TableElem {
             for (x, &col) in layout.cols.iter().enumerate() {
                 let mut dy = Abs::zero();
                 for row in rows {
-                    if let Some(fill) = fill.resolve(vt, x, row.y)? {
+                    if let Some(fill) = fill.resolve(vm, x, row.y)? {
                         let pos = Point::new(dx, dy);
                         let size = Size::new(col, row.height);
                         let rect = Geometry::Rect(size).filled(fill);
@@ -239,11 +239,11 @@ pub enum Celled<T> {
 
 impl<T: Cast + Clone> Celled<T> {
     /// Resolve the value based on the cell position.
-    pub fn resolve(&self, vt: &mut Vt, x: usize, y: usize) -> SourceResult<T> {
+    pub fn resolve(&self, vm: &mut Vm, x: usize, y: usize) -> SourceResult<T> {
         Ok(match self {
             Self::Value(value) => value.clone(),
             Self::Func(func) => func
-                .call_vt(vt, [Value::Int(x as i64), Value::Int(y as i64)])?
+                .call_vm(vm, [Value::Int(x as i64), Value::Int(y as i64)])?
                 .cast()
                 .at(func.span())?,
         })

@@ -52,7 +52,7 @@ pub struct ColumnsElem {
 impl Layout for ColumnsElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -61,7 +61,7 @@ impl Layout for ColumnsElem {
         // Separating the infinite space into infinite columns does not make
         // much sense.
         if !regions.size.x.is_finite() {
-            return body.layout(vt, styles, regions);
+            return body.layout(vm, styles, regions);
         }
 
         // Determine the width of the gutter and each column.
@@ -85,7 +85,7 @@ impl Layout for ColumnsElem {
         };
 
         // Layout the children.
-        let mut frames = body.layout(vt, styles, pod)?.into_iter();
+        let mut frames = body.layout(vm, styles, pod)?.into_iter();
         let mut finished = vec![];
 
         let dir = TextElem::dir_in(styles);

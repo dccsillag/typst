@@ -147,7 +147,7 @@ impl Array {
     pub fn find(&self, vm: &mut Vm, func: Func) -> SourceResult<Option<Value>> {
         for item in self.iter() {
             let args = Args::new(func.span(), [item.clone()]);
-            if func.call_vm(vm, args)?.cast::<bool>().at(func.span())? {
+            if func.call_vm_args(vm, args)?.cast::<bool>().at(func.span())? {
                 return Ok(Some(item.clone()));
             }
         }
@@ -158,7 +158,7 @@ impl Array {
     pub fn position(&self, vm: &mut Vm, func: Func) -> SourceResult<Option<i64>> {
         for (i, item) in self.iter().enumerate() {
             let args = Args::new(func.span(), [item.clone()]);
-            if func.call_vm(vm, args)?.cast::<bool>().at(func.span())? {
+            if func.call_vm_args(vm, args)?.cast::<bool>().at(func.span())? {
                 return Ok(Some(i as i64));
             }
         }
@@ -172,7 +172,7 @@ impl Array {
         let mut kept = EcoVec::new();
         for item in self.iter() {
             let args = Args::new(func.span(), [item.clone()]);
-            if func.call_vm(vm, args)?.cast::<bool>().at(func.span())? {
+            if func.call_vm_args(vm, args)?.cast::<bool>().at(func.span())? {
                 kept.push(item.clone())
             }
         }
@@ -184,7 +184,7 @@ impl Array {
         self.iter()
             .map(|item| {
                 let args = Args::new(func.span(), [item.clone()]);
-                func.call_vm(vm, args)
+                func.call_vm_args(vm, args)
             })
             .collect()
     }
@@ -194,7 +194,7 @@ impl Array {
         let mut acc = init;
         for item in self.iter() {
             let args = Args::new(func.span(), [acc, item.clone()]);
-            acc = func.call_vm(vm, args)?;
+            acc = func.call_vm_args(vm, args)?;
         }
         Ok(acc)
     }
@@ -203,7 +203,7 @@ impl Array {
     pub fn any(&self, vm: &mut Vm, func: Func) -> SourceResult<bool> {
         for item in self.iter() {
             let args = Args::new(func.span(), [item.clone()]);
-            if func.call_vm(vm, args)?.cast::<bool>().at(func.span())? {
+            if func.call_vm_args(vm, args)?.cast::<bool>().at(func.span())? {
                 return Ok(true);
             }
         }
@@ -215,7 +215,7 @@ impl Array {
     pub fn all(&self, vm: &mut Vm, func: Func) -> SourceResult<bool> {
         for item in self.iter() {
             let args = Args::new(func.span(), [item.clone()]);
-            if !func.call_vm(vm, args)?.cast::<bool>().at(func.span())? {
+            if !func.call_vm_args(vm, args)?.cast::<bool>().at(func.span())? {
                 return Ok(false);
             }
         }
@@ -286,7 +286,7 @@ impl Array {
         let mut key_of = |x: Value| match &key {
             // NOTE: We are relying on `comemo`'s memoization of function
             // evaluation to not excessively reevaluate the `key`.
-            Some(f) => f.call_vm(vm, Args::new(f.span(), [x])),
+            Some(f) => f.call_vm_args(vm, Args::new(f.span(), [x])),
             None => Ok(x),
         };
         vec.make_mut().sort_by(|a, b| {

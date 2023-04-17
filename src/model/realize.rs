@@ -1,6 +1,7 @@
-use super::{Content, ElemFunc, Element, MetaElem, Recipe, Selector, StyleChain, Vt};
+use super::{Content, ElemFunc, Element, MetaElem, Recipe, Selector, StyleChain};
 use crate::diag::SourceResult;
 use crate::doc::Meta;
+use crate::eval::Vm;
 use crate::util::hash128;
 
 /// Whether the target is affected by show rules in the given style chain.
@@ -29,7 +30,7 @@ pub fn applicable(target: &Content, styles: StyleChain) -> bool {
 
 /// Apply the show rules in the given style chain to a target.
 pub fn realize(
-    vt: &mut Vt,
+    vm: &mut Vm,
     target: &Content,
     styles: StyleChain,
 ) -> SourceResult<Option<Content>> {
@@ -37,12 +38,12 @@ pub fn realize(
     if target.needs_preparation() {
         let mut elem = target.clone();
         if target.can::<dyn Locatable>() || target.label().is_some() {
-            let location = vt.provider.locate(hash128(target));
+            let location = vm.provider.locate(hash128(target));
             elem.set_location(location);
         }
 
         if let Some(elem) = elem.with_mut::<dyn Synthesize>() {
-            elem.synthesize(vt, styles)?;
+            elem.synthesize(vm, styles)?;
         }
 
         elem.mark_prepared();
@@ -67,7 +68,7 @@ pub fn realize(
     for recipe in styles.recipes() {
         let guard = Guard::Nth(n);
         if recipe.applicable(target) && !target.is_guarded(guard) {
-            if let Some(content) = try_apply(vt, target, recipe, guard)? {
+            if let Some(content) = try_apply(vm, target, recipe, guard)? {
                 realized = Some(content);
                 break;
             }
@@ -79,7 +80,7 @@ pub fn realize(
     if let Some(showable) = target.with::<dyn Show>() {
         let guard = Guard::Base(target.func());
         if realized.is_none() && !target.is_guarded(guard) {
-            realized = Some(showable.show(vt, styles)?);
+            realized = Some(showable.show(vm, styles)?);
         }
     }
 
@@ -97,7 +98,7 @@ pub fn realize(
 
 /// Try to apply a recipe to the target.
 fn try_apply(
-    vt: &mut Vt,
+    vm: &mut Vm,
     target: &Content,
     recipe: &Recipe,
     guard: Guard,
@@ -108,7 +109,7 @@ fn try_apply(
                 return Ok(None);
             }
 
-            recipe.apply_vt(vt, target.clone().guarded(guard)).map(Some)
+            recipe.apply_vm(vm, target.clone().guarded(guard)).map(Some)
         }
 
         Some(Selector::Label(label)) => {
@@ -116,7 +117,7 @@ fn try_apply(
                 return Ok(None);
             }
 
-            recipe.apply_vt(vt, target.clone().guarded(guard)).map(Some)
+            recipe.apply_vm(vm, target.clone().guarded(guard)).map(Some)
         }
 
         Some(Selector::Regex(regex)) => {
@@ -135,7 +136,7 @@ fn try_apply(
                 }
 
                 let piece = make(m.as_str()).guarded(guard);
-                let transformed = recipe.apply_vt(vt, piece)?;
+                let transformed = recipe.apply_vm(vm, piece)?;
                 result.push(transformed);
                 cursor = m.end();
             }
@@ -172,13 +173,13 @@ pub trait Locatable {}
 /// rule.
 pub trait Synthesize {
     /// Prepare the element for show rule application.
-    fn synthesize(&mut self, vt: &mut Vt, styles: StyleChain) -> SourceResult<()>;
+    fn synthesize(&mut self, vm: &mut Vm, styles: StyleChain) -> SourceResult<()>;
 }
 
 /// The base recipe for an element.
 pub trait Show {
     /// Execute the base recipe for this element.
-    fn show(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Content>;
+    fn show(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Content>;
 }
 
 /// Post-process an element after it was realized.

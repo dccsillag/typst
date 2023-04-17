@@ -25,7 +25,7 @@ macro_rules! percent {
 
 /// The context for math layout.
 pub struct MathContext<'a, 'b, 'v> {
-    pub vt: &'v mut Vt<'b>,
+    pub vm: &'v mut Vm<'b>,
     pub regions: Regions<'static>,
     pub font: &'a Font,
     pub ttf: &'a ttf_parser::Face<'a>,
@@ -42,7 +42,7 @@ pub struct MathContext<'a, 'b, 'v> {
 
 impl<'a, 'b, 'v> MathContext<'a, 'b, 'v> {
     pub fn new(
-        vt: &'v mut Vt<'b>,
+        vm: &'v mut Vm<'b>,
         styles: StyleChain<'a>,
         regions: Regions,
         font: &'a Font,
@@ -60,7 +60,7 @@ impl<'a, 'b, 'v> MathContext<'a, 'b, 'v> {
 
         let variant = variant(styles);
         Self {
-            vt,
+            vm,
             regions: Regions::one(regions.base(), Axes::splat(false)),
             font,
             ttf: font.ttf(),
@@ -121,7 +121,7 @@ impl<'a, 'b, 'v> MathContext<'a, 'b, 'v> {
 
     pub fn layout_content(&mut self, content: &Content) -> SourceResult<Frame> {
         Ok(content
-            .layout(self.vt, self.outer.chain(&self.local), self.regions)?
+            .layout(self.vm, self.outer.chain(&self.local), self.regions)?
             .into_frame())
     }
 
@@ -175,7 +175,7 @@ impl<'a, 'b, 'v> MathContext<'a, 'b, 'v> {
     }
 
     pub fn realize(&mut self, content: &Content) -> SourceResult<Option<Content>> {
-        realize(self.vt, content, self.outer.chain(&self.local))
+        realize(self.vm, content, self.outer.chain(&self.local))
     }
 
     pub fn style(&mut self, style: MathStyle) {

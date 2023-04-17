@@ -94,7 +94,7 @@ pub struct TermsElem {
 impl Layout for TermsElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -123,7 +123,7 @@ impl Layout for TermsElem {
 
         Content::sequence(seq)
             .styled(ParElem::set_hanging_indent(hanging_indent + indent))
-            .layout(vt, styles, regions)
+            .layout(vm, styles, regions)
     }
 }
 

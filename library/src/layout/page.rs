@@ -272,7 +272,7 @@ pub struct PageElem {
 
 impl PageElem {
     /// Layout the page run into a sequence of frames, one per page.
-    pub fn layout(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Fragment> {
+    pub fn layout(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Fragment> {
         // When one of the lengths is infinite the page fits its content along
         // that axis.
         let width = self.width(styles).unwrap_or(Abs::inf());
@@ -304,7 +304,7 @@ impl PageElem {
 
         // Layout the child.
         let regions = Regions::repeat(size, size.map(Abs::is_finite));
-        let mut fragment = child.layout(vt, styles, regions)?;
+        let mut fragment = child.layout(vm, styles, regions)?;
 
         let fill = self.fill(styles);
         let foreground = self.foreground(styles);
@@ -359,7 +359,7 @@ impl PageElem {
                 let sub = content
                     .clone()
                     .styled(AlignElem::set_alignment(align))
-                    .layout(vt, styles, pod)?
+                    .layout(vm, styles, pod)?
                     .into_frame();
                 if ptr::eq(marginal, &header) || ptr::eq(marginal, &background) {
                     frame.prepend_frame(pos, sub);
@@ -412,10 +412,10 @@ pub enum Marginal {
 
 impl Marginal {
     /// Resolve the marginal based on the page number.
-    pub fn resolve(&self, vt: &mut Vt, page: usize) -> SourceResult<Content> {
+    pub fn resolve(&self, vm: &mut Vm, page: usize) -> SourceResult<Content> {
         Ok(match self {
             Self::Content(content) => content.clone(),
-            Self::Func(func) => func.call_vt(vt, [Value::Int(page as i64)])?.display(),
+            Self::Func(func) => func.call_vm(vm, [Value::Int(page as i64)])?.display(),
         })
     }
 }

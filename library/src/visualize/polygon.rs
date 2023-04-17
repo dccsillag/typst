@@ -51,7 +51,7 @@ pub struct PolygonElem {
 impl Layout for PolygonElem {
     fn layout(
         &self,
-        _: &mut Vt,
+        _: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {

@@ -23,7 +23,7 @@ pub struct HideElem {
 }
 
 impl Show for HideElem {
-    fn show(&self, _: &mut Vt, _: StyleChain) -> SourceResult<Content> {
+    fn show(&self, _: &mut Vm, _: StyleChain) -> SourceResult<Content> {
         Ok(self.body().styled(MetaElem::set_data(vec![Meta::Hide])))
     }
 }

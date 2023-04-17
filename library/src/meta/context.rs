@@ -72,13 +72,13 @@ struct LocateElem {
 }
 
 impl Show for LocateElem {
-    fn show(&self, vt: &mut Vt, _: StyleChain) -> SourceResult<Content> {
-        if !vt.introspector.init() {
+    fn show(&self, vm: &mut Vm, _: StyleChain) -> SourceResult<Content> {
+        if !vm.introspector.init() {
             return Ok(Content::empty());
         }
 
         let location = self.0.location().unwrap();
-        Ok(self.func().call_vt(vt, [location.into()])?.display())
+        Ok(self.func().call_vm(vm, [location.into()])?.display())
     }
 }
 
@@ -127,8 +127,8 @@ struct StyleElem {
 }
 
 impl Show for StyleElem {
-    fn show(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Content> {
-        Ok(self.func().call_vt(vt, [styles.to_map().into()])?.display())
+    fn show(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Content> {
+        Ok(self.func().call_vm(vm, [styles.to_map().into()])?.display())
     }
 }
 
@@ -206,7 +206,7 @@ struct LayoutElem {
 impl Layout for LayoutElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -217,9 +217,9 @@ impl Layout for LayoutElem {
 
         let result = self
             .func()
-            .call_vt(vt, [size_dict])? // calls func(size)
+            .call_vm(vm, [size_dict])? // calls func(size)
             .display();
 
-        result.layout(vt, styles, regions)
+        result.layout(vm, styles, regions)
     }
 }

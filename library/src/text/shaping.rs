@@ -162,11 +162,11 @@ impl<'a> ShapedText<'a> {
     /// [justifiable glyph](ShapedGlyph::is_justifiable) will get.
     pub fn build(
         &self,
-        vt: &Vt,
+        vm: &Vm,
         justification_ratio: f64,
         extra_justification: Abs,
     ) -> Frame {
-        let (top, bottom) = self.measure(vt);
+        let (top, bottom) = self.measure(vm);
         let size = Size::new(self.width, top + bottom);
 
         let mut offset = Abs::zero();
@@ -246,7 +246,7 @@ impl<'a> ShapedText<'a> {
     }
 
     /// Measure the top and bottom extent of this text.
-    fn measure(&self, vt: &Vt) -> (Abs, Abs) {
+    fn measure(&self, vm: &Vm) -> (Abs, Abs) {
         let mut top = Abs::zero();
         let mut bottom = Abs::zero();
 
@@ -263,7 +263,7 @@ impl<'a> ShapedText<'a> {
         if self.glyphs.is_empty() {
             // When there are no glyphs, we just use the vertical metrics of the
             // first available font.
-            let world = vt.world;
+            let world = vm.world;
             for family in families(self.styles) {
                 if let Some(font) = world
                     .book()
@@ -320,7 +320,7 @@ impl<'a> ShapedText<'a> {
     /// shaping process if possible.
     pub fn reshape(
         &'a self,
-        vt: &Vt,
+        vm: &Vm,
         spans: &SpanMapper,
         text_range: Range<usize>,
     ) -> ShapedText<'a> {
@@ -337,7 +337,7 @@ impl<'a> ShapedText<'a> {
             }
         } else {
             shape(
-                vt,
+                vm,
                 self.base + text_range.start,
                 &self.text[text_range],
                 spans,
@@ -348,9 +348,9 @@ impl<'a> ShapedText<'a> {
     }
 
     /// Push a hyphen to end of the text.
-    pub fn push_hyphen(&mut self, vt: &Vt) {
+    pub fn push_hyphen(&mut self, vm: &Vm) {
         families(self.styles).find_map(|family| {
-            let world = vt.world;
+            let world = vm.world;
             let font = world
                 .book()
                 .select(family.as_str(), self.variant)
@@ -443,7 +443,7 @@ impl Debug for ShapedText<'_> {
 
 /// Holds shaping results and metadata common to all shaped segments.
 struct ShapingContext<'a> {
-    vt: &'a Vt<'a>,
+    vm: &'a Vm<'a>,
     base: usize,
     spans: &'a SpanMapper,
     glyphs: Vec<ShapedGlyph>,
@@ -458,7 +458,7 @@ struct ShapingContext<'a> {
 
 /// Shape text into [`ShapedText`].
 pub fn shape<'a>(
-    vt: &Vt,
+    vm: &Vm,
     base: usize,
     text: &'a str,
     spans: &SpanMapper,
@@ -467,7 +467,7 @@ pub fn shape<'a>(
 ) -> ShapedText<'a> {
     let size = TextElem::size_in(styles);
     let mut ctx = ShapingContext {
-        vt,
+        vm,
         base,
         spans,
         size,
@@ -511,7 +511,7 @@ fn shape_segment(
     }
 
     // Find the next available family.
-    let world = ctx.vt.world;
+    let world = ctx.vm.world;
     let book = world.book();
     let mut selection = families.find_map(|family| {
         book.select(family.as_str(), ctx.variant)

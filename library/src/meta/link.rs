@@ -88,16 +88,16 @@ impl LinkElem {
 }
 
 impl Show for LinkElem {
-    fn show(&self, vt: &mut Vt, _: StyleChain) -> SourceResult<Content> {
+    fn show(&self, vm: &mut Vm, _: StyleChain) -> SourceResult<Content> {
         let body = self.body();
         let dest = match self.dest() {
             LinkTarget::Dest(dest) => dest,
             LinkTarget::Label(label) => {
-                if !vt.introspector.init() {
+                if !vm.introspector.init() {
                     return Ok(body);
                 }
 
-                let elem = vt.introspector.query_label(&label).at(self.span())?;
+                let elem = vm.introspector.query_label(&label).at(self.span())?;
                 Destination::Location(elem.location().unwrap())
             }
         };

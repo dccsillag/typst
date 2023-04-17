@@ -21,7 +21,7 @@ pub struct FlowElem {
 impl Layout for FlowElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -38,7 +38,7 @@ impl Layout for FlowElem {
             if let Some(elem) = child.to::<VElem>() {
                 layouter.layout_spacing(elem, styles);
             } else if let Some(elem) = child.to::<ParElem>() {
-                layouter.layout_par(vt, elem, styles)?;
+                layouter.layout_par(vm, elem, styles)?;
             } else if child.is::<RectElem>()
                 || child.is::<SquareElem>()
                 || child.is::<EllipseElem>()
@@ -48,7 +48,7 @@ impl Layout for FlowElem {
                 || child.is::<PathElem>()
             {
                 let layoutable = child.with::<dyn Layout>().unwrap();
-                layouter.layout_single(vt, layoutable, styles)?;
+                layouter.layout_single(vm, layoutable, styles)?;
             } else if child.is::<MetaElem>() {
                 let mut frame = Frame::new(Size::zero());
                 frame.meta(styles, true);
@@ -58,7 +58,7 @@ impl Layout for FlowElem {
                     true,
                 ));
             } else if child.can::<dyn Layout>() {
-                layouter.layout_multiple(vt, child, styles)?;
+                layouter.layout_multiple(vm, child, styles)?;
             } else if child.is::<ColbreakElem>() {
                 if !layouter.regions.backlog.is_empty() || layouter.regions.last.is_some()
                 {
@@ -135,7 +135,7 @@ impl<'a> FlowLayouter<'a> {
     /// Layout a paragraph.
     fn layout_par(
         &mut self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         par: &ParElem,
         styles: StyleChain,
     ) -> SourceResult<()> {
@@ -143,7 +143,7 @@ impl<'a> FlowLayouter<'a> {
         let leading = ParElem::leading_in(styles);
         let consecutive = self.last_was_par;
         let frames = par
-            .layout(vt, styles, consecutive, self.regions.base(), self.regions.expand.x)?
+            .layout(vm, styles, consecutive, self.regions.base(), self.regions.expand.x)?
             .into_frames();
 
         let mut sticky = self.items.len();
@@ -181,14 +181,14 @@ impl<'a> FlowLayouter<'a> {
     /// Layout into a single region.
     fn layout_single(
         &mut self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         content: &dyn Layout,
         styles: StyleChain,
     ) -> SourceResult<()> {
         let aligns = AlignElem::alignment_in(styles).resolve(styles);
         let sticky = BlockElem::sticky_in(styles);
         let pod = Regions::one(self.regions.base(), Axes::splat(false));
-        let frame = content.layout(vt, styles, pod)?.into_frame();
+        let frame = content.layout(vm, styles, pod)?.into_frame();
         self.layout_item(FlowItem::Frame(frame, aligns, sticky));
         self.last_was_par = false;
         Ok(())
@@ -197,7 +197,7 @@ impl<'a> FlowLayouter<'a> {
     /// Layout into multiple regions.
     fn layout_multiple(
         &mut self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         block: &Content,
         styles: StyleChain,
     ) -> SourceResult<()> {
@@ -205,7 +205,7 @@ impl<'a> FlowLayouter<'a> {
         // aren't aligned later.
         if let Some(placed) = block.to::<PlaceElem>() {
             if placed.out_of_flow(styles) {
-                let frame = block.layout(vt, styles, self.regions)?.into_frame();
+                let frame = block.layout(vm, styles, self.regions)?.into_frame();
                 self.layout_item(FlowItem::Placed(frame));
                 return Ok(());
             }
@@ -223,7 +223,7 @@ impl<'a> FlowLayouter<'a> {
 
         // Layout the block itself.
         let sticky = BlockElem::sticky_in(styles);
-        let fragment = block.layout(vt, styles, self.regions)?;
+        let fragment = block.layout(vm, styles, self.regions)?;
         for (i, frame) in fragment.into_iter().enumerate() {
             if i > 0 {
                 self.finish_region();

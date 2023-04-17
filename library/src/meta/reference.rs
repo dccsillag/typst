@@ -120,21 +120,21 @@ pub struct RefElem {
 }
 
 impl Synthesize for RefElem {
-    fn synthesize(&mut self, vt: &mut Vt, styles: StyleChain) -> SourceResult<()> {
-        let citation = self.to_citation(vt, styles)?;
+    fn synthesize(&mut self, vm: &mut Vm, styles: StyleChain) -> SourceResult<()> {
+        let citation = self.to_citation(vm, styles)?;
         self.push_citation(Some(citation));
 
-        if !vt.introspector.init() {
+        if !vm.introspector.init() {
             self.push_element(None);
             return Ok(());
         }
 
         // find the element content
         let target = self.target();
-        let elem = vt.introspector.query_label(&self.target());
+        let elem = vm.introspector.query_label(&self.target());
         // not in bibliography, but in document, then push the element
         if let (false, Ok(elem)) =
-            (BibliographyElem::has(vt, &target.0), elem.at(self.span()))
+            (BibliographyElem::has(vm, &target.0), elem.at(self.span()))
         {
             self.push_element(Some(elem));
         } else {
@@ -146,20 +146,20 @@ impl Synthesize for RefElem {
 }
 
 impl Show for RefElem {
-    fn show(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Content> {
-        if !vt.introspector.init() {
+    fn show(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Content> {
+        if !vm.introspector.init() {
             return Ok(Content::empty());
         }
 
         let target = self.target();
-        let elem = vt.introspector.query_label(&self.target());
+        let elem = vm.introspector.query_label(&self.target());
 
-        if BibliographyElem::has(vt, &target.0) {
+        if BibliographyElem::has(vm, &target.0) {
             if elem.is_ok() {
                 bail!(self.span(), "label occurs in the document and its bibliography");
             }
 
-            return Ok(self.to_citation(vt, styles)?.pack());
+            return Ok(self.to_citation(vm, styles)?.pack());
         }
 
         let elem = elem.at(self.span())?;
@@ -178,7 +178,7 @@ impl Show for RefElem {
         let supplement = match self.supplement(styles) {
             Smart::Auto | Smart::Custom(None) => None,
             Smart::Custom(Some(supplement)) => {
-                Some(supplement.resolve(vt, [elem.clone().into()])?)
+                Some(supplement.resolve(vm, [elem.clone().into()])?)
             }
         };
 
@@ -186,7 +186,7 @@ impl Show for RefElem {
         let reference = elem
             .with::<dyn Refable>()
             .expect("element should be refable")
-            .reference(vt, supplement, lang)?;
+            .reference(vm, supplement, lang)?;
 
         Ok(reference.linked(Destination::Location(elem.location().unwrap())))
     }
@@ -194,10 +194,10 @@ impl Show for RefElem {
 
 impl RefElem {
     /// Turn the reference into a citation.
-    pub fn to_citation(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<CiteElem> {
+    pub fn to_citation(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<CiteElem> {
         let mut elem = CiteElem::new(vec![self.target().0]);
         elem.0.set_location(self.0.location().unwrap());
-        elem.synthesize(vt, styles)?;
+        elem.synthesize(vm, styles)?;
         elem.push_supplement(match self.supplement(styles) {
             Smart::Custom(Some(Supplement::Content(content))) => Some(content),
             _ => None,
@@ -217,12 +217,12 @@ impl Supplement {
     /// Tries to resolve the supplement into its content.
     pub fn resolve(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         args: impl IntoIterator<Item = Value>,
     ) -> SourceResult<Content> {
         match self {
             Supplement::Content(content) => Ok(content.clone()),
-            Supplement::Func(func) => func.call_vt(vt, args).map(|v| v.display()),
+            Supplement::Func(func) => func.call_vm(vm, args).map(|v| v.display()),
         }
     }
 
@@ -263,7 +263,7 @@ pub trait Refable {
     /// - `supplement` - The supplement of the reference.
     fn reference(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         supplement: Option<Content>,
         lang: Lang,
     ) -> SourceResult<Content>;
@@ -271,8 +271,8 @@ pub trait Refable {
     /// Tries to build an outline element for this element.
     /// If this returns `None`, the outline will not include this element.
     /// By default this just calls [`Refable::reference`].
-    fn outline(&self, vt: &mut Vt, lang: Lang) -> SourceResult<Option<Content>> {
-        self.reference(vt, None, lang).map(Some)
+    fn outline(&self, vm: &mut Vm, lang: Lang) -> SourceResult<Option<Content>> {
+        self.reference(vm, None, lang).map(Some)
     }
 
     /// Returns the level of this element.

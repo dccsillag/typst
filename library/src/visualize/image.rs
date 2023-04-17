@@ -52,11 +52,11 @@ pub struct ImageElem {
 impl Layout for ImageElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
-        let image = load(vt.world, &self.path()).unwrap();
+        let image = load(vm.world, &self.path()).unwrap();
         let sizing = Axes::new(self.width(styles), self.height(styles));
         let region = sizing
             .zip(regions.base())

@@ -62,7 +62,7 @@ pub struct PathElem {
 impl Layout for PathElem {
     fn layout(
         &self,
-        _: &mut Vt,
+        _: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {

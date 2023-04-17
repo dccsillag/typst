@@ -18,7 +18,11 @@ use comemo::{Constraint, Track, Tracked, TrackedMut};
 
 use crate::diag::SourceResult;
 use crate::doc::Document;
+use crate::eval::Route;
+use crate::eval::Scopes;
 use crate::eval::Tracer;
+use crate::eval::Vm;
+use crate::syntax::SourceId;
 use crate::World;
 
 /// Typeset content into a fully layouted document.
@@ -40,14 +44,20 @@ pub fn typeset(
     loop {
         let constraint = Constraint::new();
         let mut provider = StabilityProvider::new();
-        let mut vt = Vt {
+        let route = Route::default();
+        let id = SourceId::detached();
+        let scopes = Scopes::new(Some(library));
+        let mut vm = Vm::new(
             world,
-            tracer: TrackedMut::reborrow_mut(&mut tracer),
-            provider: provider.track_mut(),
-            introspector: introspector.track_with(&constraint),
-        };
+            TrackedMut::reborrow_mut(&mut tracer),
+            provider.track_mut(),
+            introspector.track_with(&constraint),
+            route.track(),
+            id,
+            scopes,
+        );
 
-        document = (library.items.layout)(&mut vt, content, styles)?;
+        document = (library.items.layout)(&mut vm, content, styles)?;
         iter += 1;
 
         introspector = Introspector::new(&document.pages);
@@ -58,30 +68,4 @@ pub fn typeset(
     }
 
     Ok(document)
-}
-
-/// A virtual typesetter.
-///
-/// Holds the state needed to [typeset] content.
-pub struct Vt<'a> {
-    /// The compilation environment.
-    pub world: Tracked<'a, dyn World>,
-    /// The tracer for inspection of the values an expression produces.
-    pub tracer: TrackedMut<'a, Tracer>,
-    /// Provides stable identities to elements.
-    pub provider: TrackedMut<'a, StabilityProvider>,
-    /// Provides access to information about the document.
-    pub introspector: Tracked<'a, Introspector>,
-}
-
-impl Vt<'_> {
-    /// Mutably reborrow with a shorter lifetime.
-    pub fn reborrow_mut(&mut self) -> Vt<'_> {
-        Vt {
-            world: self.world,
-            tracer: TrackedMut::reborrow_mut(&mut self.tracer),
-            provider: TrackedMut::reborrow_mut(&mut self.provider),
-            introspector: self.introspector,
-        }
-    }
 }

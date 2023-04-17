@@ -56,7 +56,7 @@ pub struct PlaceElem {
 impl Layout for PlaceElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -75,7 +75,7 @@ impl Layout for PlaceElem {
             .moved(Axes::new(self.dx(styles), self.dy(styles)))
             .aligned(self.alignment(styles));
 
-        let mut frame = child.layout(vt, styles, pod)?.into_frame();
+        let mut frame = child.layout(vm, styles, pod)?.into_frame();
 
         // If expansion is off, zero all sizes so that we don't take up any
         // space in our parent. Otherwise, respect the expand settings.

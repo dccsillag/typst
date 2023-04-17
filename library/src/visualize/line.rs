@@ -54,7 +54,7 @@ pub struct LineElem {
     ///           Elements can also be the string `"dot"` for a length equal to the line thickness.
     ///         - A dict with the keys `array`, same as the array above, and `phase`, the offset to
     ///           the start of the first dash.
-    ///     
+    ///
     ///
     /// ```example
     /// #stack(
@@ -75,7 +75,7 @@ pub struct LineElem {
 impl Layout for LineElem {
     fn layout(
         &self,
-        _: &mut Vt,
+        _: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {

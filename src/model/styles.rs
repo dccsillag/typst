@@ -8,7 +8,7 @@ use std::sync::Arc;
 use comemo::Prehashed;
 use ecow::{eco_format, eco_vec, EcoString, EcoVec};
 
-use super::{Content, ElemFunc, Element, Introspector, Label, Location, Vt};
+use super::{Content, ElemFunc, Element, Introspector, Label, Location};
 use crate::diag::{SourceResult, StrResult, Trace, Tracepoint};
 use crate::eval::{cast_from_value, Args, Cast, CastInfo, Dict, Func, Regex, Value, Vm};
 use crate::model::Locatable;
@@ -214,27 +214,11 @@ impl Recipe {
             Transform::Content(content) => Ok(content.clone()),
             Transform::Func(func) => {
                 let args = Args::new(self.span, [Value::Content(content.clone())]);
-                let mut result = func.call_vm(vm, args);
+                let mut result = func.call_vm_args(vm, args);
                 // For selector-less show rules, a tracepoint makes no sense.
                 if self.selector.is_some() {
                     let point = || Tracepoint::Show(content.func().name().into());
                     result = result.trace(vm.world(), point, content.span());
-                }
-                Ok(result?.display())
-            }
-            Transform::Style(styles) => Ok(content.styled_with_map(styles.clone())),
-        }
-    }
-
-    /// Apply the recipe to the given content.
-    pub fn apply_vt(&self, vt: &mut Vt, content: Content) -> SourceResult<Content> {
-        match &self.transform {
-            Transform::Content(content) => Ok(content.clone()),
-            Transform::Func(func) => {
-                let mut result = func.call_vt(vt, [Value::Content(content.clone())]);
-                if self.selector.is_some() {
-                    let point = || Tracepoint::Show(content.func().name().into());
-                    result = result.trace(vt.world, point, content.span());
                 }
                 Ok(result?.display())
             }

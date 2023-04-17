@@ -3,7 +3,8 @@ use std::str::FromStr;
 
 use ecow::{eco_vec, EcoVec};
 use smallvec::{smallvec, SmallVec};
-use typst::eval::Tracer;
+use typst::eval::{Route, Scopes, Tracer};
+use typst::syntax::SourceId;
 
 use super::{FigureElem, HeadingElem, Numbering, NumberingPattern};
 use crate::layout::PageElem;
@@ -319,8 +320,8 @@ impl Counter {
                 ))
                 .into(),
             "update" => self.update(args.expect("value or function")?).into(),
-            "at" => self.at(&mut vm.vt, args.expect("location")?)?.into(),
-            "final" => self.final_(&mut vm.vt, args.expect("location")?)?.into(),
+            "at" => self.at(vm, args.expect("location")?)?.into(),
+            "final" => self.final_(vm, args.expect("location")?)?.into(),
             _ => bail!(span, "type counter has no method `{}`", method),
         };
         args.finish()?;
@@ -333,15 +334,15 @@ impl Counter {
     }
 
     /// Get the value of the state at the given location.
-    pub fn at(&self, vt: &mut Vt, location: Location) -> SourceResult<CounterState> {
-        let sequence = self.sequence(vt)?;
-        let offset = vt
+    pub fn at(&self, vm: &mut Vm, location: Location) -> SourceResult<CounterState> {
+        let sequence = self.sequence(vm)?;
+        let offset = vm
             .introspector
             .query(&Selector::before(self.selector(), location, true))
             .len();
         let (mut state, page) = sequence[offset].clone();
         if self.is_page() {
-            let delta = vt.introspector.page(location).get().saturating_sub(page.get());
+            let delta = vm.introspector.page(location).get().saturating_sub(page.get());
             state.step(NonZeroUsize::ONE, delta);
         }
 
@@ -349,20 +350,20 @@ impl Counter {
     }
 
     /// Get the value of the state at the final location.
-    pub fn final_(&self, vt: &mut Vt, _: Location) -> SourceResult<CounterState> {
-        let sequence = self.sequence(vt)?;
+    pub fn final_(&self, vm: &mut Vm, _: Location) -> SourceResult<CounterState> {
+        let sequence = self.sequence(vm)?;
         let (mut state, page) = sequence.last().unwrap().clone();
         if self.is_page() {
-            let delta = vt.introspector.pages().get().saturating_sub(page.get());
+            let delta = vm.introspector.pages().get().saturating_sub(page.get());
             state.step(NonZeroUsize::ONE, delta);
         }
         Ok(state)
     }
 
     /// Get the current and final value of the state combined in one state.
-    pub fn both(&self, vt: &mut Vt, location: Location) -> SourceResult<CounterState> {
-        let sequence = self.sequence(vt)?;
-        let offset = vt
+    pub fn both(&self, vm: &mut Vm, location: Location) -> SourceResult<CounterState> {
+        let sequence = self.sequence(vm)?;
+        let offset = vm
             .introspector
             .query(&Selector::before(self.selector(), location, true))
             .len();
@@ -370,10 +371,10 @@ impl Counter {
         let (mut final_state, final_page) = sequence.last().unwrap().clone();
         if self.is_page() {
             let at_delta =
-                vt.introspector.page(location).get().saturating_sub(at_page.get());
+                vm.introspector.page(location).get().saturating_sub(at_page.get());
             at_state.step(NonZeroUsize::ONE, at_delta);
             let final_delta =
-                vt.introspector.pages().get().saturating_sub(final_page.get());
+                vm.introspector.pages().get().saturating_sub(final_page.get());
             final_state.step(NonZeroUsize::ONE, final_delta);
         }
         Ok(CounterState(smallvec![at_state.first(), final_state.first()]))
@@ -390,13 +391,13 @@ impl Counter {
     /// of counter updates from quadratic to linear.
     fn sequence(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
     ) -> SourceResult<EcoVec<(CounterState, NonZeroUsize)>> {
         self.sequence_impl(
-            vt.world,
-            TrackedMut::reborrow_mut(&mut vt.tracer),
-            TrackedMut::reborrow_mut(&mut vt.provider),
-            vt.introspector,
+            vm.world,
+            TrackedMut::reborrow_mut(&mut vm.tracer),
+            TrackedMut::reborrow_mut(&mut vm.provider),
+            vm.introspector,
         )
     }
 
@@ -409,7 +410,11 @@ impl Counter {
         provider: TrackedMut<StabilityProvider>,
         introspector: Tracked<Introspector>,
     ) -> SourceResult<EcoVec<(CounterState, NonZeroUsize)>> {
-        let mut vt = Vt { world, tracer, provider, introspector };
+        let route = Route::default();
+        let id = SourceId::detached();
+        let scopes = Scopes::new(Some(world.library()));
+        let mut vm =
+            Vm::new(world, tracer, provider, introspector, route.track(), id, scopes);
         let mut state = CounterState(match &self.0 {
             // special case, because pages always start at one.
             CounterKey::Page => smallvec![1],
@@ -436,7 +441,7 @@ impl Counter {
                     None => Some(CounterUpdate::Step(NonZeroUsize::ONE)),
                 },
             } {
-                state.update(&mut vt, update)?;
+                state.update(&mut vm, update)?;
             }
 
             stops.push((state.clone(), page));
@@ -546,13 +551,13 @@ pub struct CounterState(pub SmallVec<[usize; 3]>);
 
 impl CounterState {
     /// Advance the counter and return the numbers for the given heading.
-    pub fn update(&mut self, vt: &mut Vt, update: CounterUpdate) -> SourceResult<()> {
+    pub fn update(&mut self, vm: &mut Vm, update: CounterUpdate) -> SourceResult<()> {
         match update {
             CounterUpdate::Set(state) => *self = state,
             CounterUpdate::Step(level) => self.step(level, 1),
             CounterUpdate::Func(func) => {
                 *self = func
-                    .call_vt(vt, self.0.iter().copied().map(Into::into))?
+                    .call_vm(vm, self.0.iter().copied().map(Into::into))?
                     .cast()
                     .at(func.span())?
             }
@@ -580,8 +585,8 @@ impl CounterState {
     }
 
     /// Display the counter state with a numbering.
-    pub fn display(&self, vt: &mut Vt, numbering: &Numbering) -> SourceResult<Content> {
-        Ok(numbering.apply_vt(vt, &self.0)?.display())
+    pub fn display(&self, vm: &mut Vm, numbering: &Numbering) -> SourceResult<Content> {
+        Ok(numbering.apply_vt(vm, &self.0)?.display())
     }
 }
 
@@ -618,8 +623,8 @@ struct DisplayElem {
 }
 
 impl Show for DisplayElem {
-    fn show(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Content> {
-        if !vt.introspector.init() {
+    fn show(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Content> {
+        if !vm.introspector.init() {
             return Ok(Content::empty());
         }
 
@@ -645,11 +650,11 @@ impl Show for DisplayElem {
             .unwrap_or_else(|| NumberingPattern::from_str("1.1").unwrap().into());
 
         let state = if self.both() {
-            counter.both(vt, location)?
+            counter.both(vm, location)?
         } else {
-            counter.at(vt, location)?
+            counter.at(vm, location)?
         };
-        state.display(vt, &numbering)
+        state.display(vm, &numbering)
     }
 }
 
@@ -669,7 +674,7 @@ struct UpdateElem {
 }
 
 impl Show for UpdateElem {
-    fn show(&self, _: &mut Vt, _: StyleChain) -> SourceResult<Content> {
+    fn show(&self, _: &mut Vm, _: StyleChain) -> SourceResult<Content> {
         Ok(Content::empty())
     }
 }

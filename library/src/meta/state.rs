@@ -1,7 +1,10 @@
 use std::fmt::{self, Debug, Formatter, Write};
 
 use ecow::{eco_vec, EcoVec};
-use typst::eval::Tracer;
+use typst::{
+    eval::{Route, Scopes, Tracer},
+    syntax::SourceId,
+};
 
 use crate::prelude::*;
 
@@ -265,8 +268,8 @@ impl State {
     ) -> SourceResult<Value> {
         let value = match method {
             "display" => self.display(args.eat()?).into(),
-            "at" => self.at(&mut vm.vt, args.expect("location")?)?,
-            "final" => self.final_(&mut vm.vt, args.expect("location")?)?,
+            "at" => self.at(vm, args.expect("location")?)?,
+            "final" => self.final_(vm, args.expect("location")?)?,
             "update" => self.update(args.expect("value or function")?).into(),
             _ => bail!(span, "type state has no method `{}`", method),
         };
@@ -280,9 +283,9 @@ impl State {
     }
 
     /// Get the value of the state at the given location.
-    pub fn at(self, vt: &mut Vt, location: Location) -> SourceResult<Value> {
-        let sequence = self.sequence(vt)?;
-        let offset = vt
+    pub fn at(self, vm: &mut Vm, location: Location) -> SourceResult<Value> {
+        let sequence = self.sequence(vm)?;
+        let offset = vm
             .introspector
             .query(&Selector::before(self.selector(), location, true))
             .len();
@@ -290,8 +293,8 @@ impl State {
     }
 
     /// Get the value of the state at the final location.
-    pub fn final_(self, vt: &mut Vt, _: Location) -> SourceResult<Value> {
-        let sequence = self.sequence(vt)?;
+    pub fn final_(self, vm: &mut Vm, _: Location) -> SourceResult<Value> {
+        let sequence = self.sequence(vm)?;
         Ok(sequence.last().unwrap().clone())
     }
 
@@ -304,12 +307,12 @@ impl State {
     ///
     /// This has to happen just once for all states, cutting down the number
     /// of state updates from quadratic to linear.
-    fn sequence(&self, vt: &mut Vt) -> SourceResult<EcoVec<Value>> {
+    fn sequence(&self, vm: &mut Vm) -> SourceResult<EcoVec<Value>> {
         self.sequence_impl(
-            vt.world,
-            TrackedMut::reborrow_mut(&mut vt.tracer),
-            TrackedMut::reborrow_mut(&mut vt.provider),
-            vt.introspector,
+            vm.world,
+            TrackedMut::reborrow_mut(&mut vm.tracer),
+            TrackedMut::reborrow_mut(&mut vm.provider),
+            vm.introspector,
         )
     }
 
@@ -322,7 +325,11 @@ impl State {
         provider: TrackedMut<StabilityProvider>,
         introspector: Tracked<Introspector>,
     ) -> SourceResult<EcoVec<Value>> {
-        let mut vt = Vt { world, tracer, provider, introspector };
+        let route = Route::default();
+        let id = SourceId::detached();
+        let scopes = Scopes::new(Some(world.library()));
+        let mut vm =
+            Vm::new(world, tracer, provider, introspector, route.track(), id, scopes);
         let mut state = self.init.clone();
         let mut stops = eco_vec![state.clone()];
 
@@ -330,7 +337,7 @@ impl State {
             let elem = elem.to::<UpdateElem>().unwrap();
             match elem.update() {
                 StateUpdate::Set(value) => state = value,
-                StateUpdate::Func(func) => state = func.call_vt(&mut vt, [state])?,
+                StateUpdate::Func(func) => state = func.call_vm(&mut vm, [state])?,
             }
             stops.push(state.clone());
         }
@@ -395,15 +402,15 @@ struct DisplayElem {
 }
 
 impl Show for DisplayElem {
-    fn show(&self, vt: &mut Vt, _: StyleChain) -> SourceResult<Content> {
-        if !vt.introspector.init() {
+    fn show(&self, vm: &mut Vm, _: StyleChain) -> SourceResult<Content> {
+        if !vm.introspector.init() {
             return Ok(Content::empty());
         }
 
         let location = self.0.location().unwrap();
-        let value = self.state().at(vt, location)?;
+        let value = self.state().at(vm, location)?;
         Ok(match self.func() {
-            Some(func) => func.call_vt(vt, [value])?.display(),
+            Some(func) => func.call_vm(vm, [value])?.display(),
             None => value.display(),
         })
     }
@@ -425,7 +432,7 @@ struct UpdateElem {
 }
 
 impl Show for UpdateElem {
-    fn show(&self, _: &mut Vt, _: StyleChain) -> SourceResult<Content> {
+    fn show(&self, _: &mut Vm, _: StyleChain) -> SourceResult<Content> {
         Ok(Content::empty())
     }
 }

@@ -86,17 +86,17 @@ impl Numbering {
             Self::Func(func) => {
                 let args =
                     Args::new(func.span(), numbers.iter().map(|&n| Value::Int(n as i64)));
-                func.call_vm(vm, args)?
+                func.call_vm_args(vm, args)?
             }
         })
     }
 
     /// Apply the pattern to the given numbers.
-    pub fn apply_vt(&self, vt: &mut Vt, numbers: &[usize]) -> SourceResult<Value> {
+    pub fn apply_vt(&self, vm: &mut Vm, numbers: &[usize]) -> SourceResult<Value> {
         Ok(match self {
             Self::Pattern(pattern) => Value::Str(pattern.apply(numbers).into()),
             Self::Func(func) => {
-                func.call_vt(vt, numbers.iter().map(|&n| Value::Int(n as i64)))?
+                func.call_vm(vm, numbers.iter().map(|&n| Value::Int(n as i64)))?
             }
         })
     }

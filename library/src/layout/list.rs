@@ -114,7 +114,7 @@ pub struct ListElem {
 impl Layout for ListElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -128,7 +128,7 @@ impl Layout for ListElem {
         };
 
         let depth = self.depth(styles);
-        let marker = self.marker(styles).resolve(vt, depth)?;
+        let marker = self.marker(styles).resolve(vm, depth)?;
 
         let mut cells = vec![];
         for item in self.children() {
@@ -139,7 +139,7 @@ impl Layout for ListElem {
         }
 
         let layouter = GridLayouter::new(
-            vt,
+            vm,
             Axes::with_x(&[
                 Sizing::Rel(indent.into()),
                 Sizing::Auto,
@@ -181,14 +181,14 @@ pub enum ListMarker {
 
 impl ListMarker {
     /// Resolve the marker for the given depth.
-    fn resolve(&self, vt: &mut Vt, depth: usize) -> SourceResult<Content> {
+    fn resolve(&self, vm: &mut Vm, depth: usize) -> SourceResult<Content> {
         Ok(match self {
             Self::Content(list) => list
                 .get(depth)
                 .or(list.last())
                 .cloned()
                 .unwrap_or_else(|| TextElem::packed('•')),
-            Self::Func(func) => func.call_vt(vt, [Value::Int(depth as i64)])?.display(),
+            Self::Func(func) => func.call_vm(vm, [Value::Int(depth as i64)])?.display(),
         })
     }
 }

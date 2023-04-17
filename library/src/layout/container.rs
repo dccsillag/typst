@@ -101,7 +101,7 @@ pub struct BoxElem {
 impl Layout for BoxElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -130,7 +130,7 @@ impl Layout for BoxElem {
         // Select the appropriate base and expansion for the child depending
         // on whether it is automatically or relatively sized.
         let pod = Regions::one(size, expand);
-        let mut frame = body.layout(vt, styles, pod)?.into_frame();
+        let mut frame = body.layout(vm, styles, pod)?.into_frame();
 
         // Enforce correct size.
         *frame.size_mut() = expand.select(size, frame.size());
@@ -328,7 +328,7 @@ pub struct BlockElem {
 impl Layout for BlockElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -353,7 +353,7 @@ impl Layout for BlockElem {
             // Measure to ensure frames for all regions have the same width.
             if sizing.x == Smart::Auto {
                 let pod = Regions::one(size, Axes::splat(false));
-                let frame = body.measure(vt, styles, pod)?.into_frame();
+                let frame = body.measure(vm, styles, pod)?.into_frame();
                 size.x = frame.width();
                 expand.x = true;
             }
@@ -388,7 +388,7 @@ impl Layout for BlockElem {
                 pod.last = None;
             }
 
-            let mut frames = body.layout(vt, styles, pod)?.into_frames();
+            let mut frames = body.layout(vm, styles, pod)?.into_frames();
             for (frame, &height) in frames.iter_mut().zip(&heights) {
                 *frame.size_mut() =
                     expand.select(Size::new(size.x, height), frame.size());
@@ -396,7 +396,7 @@ impl Layout for BlockElem {
             frames
         } else {
             let pod = Regions::one(size, expand);
-            let mut frames = body.layout(vt, styles, pod)?.into_frames();
+            let mut frames = body.layout(vm, styles, pod)?.into_frames();
             *frames[0].size_mut() = expand.select(size, frames[0].size());
             frames
         };

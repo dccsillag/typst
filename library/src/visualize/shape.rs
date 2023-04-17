@@ -156,12 +156,12 @@ pub struct RectElem {
 impl Layout for RectElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
         layout(
-            vt,
+            vm,
             styles,
             regions,
             ShapeKind::Rect,
@@ -266,12 +266,12 @@ pub struct SquareElem {
 impl Layout for SquareElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
         layout(
-            vt,
+            vm,
             styles,
             regions,
             ShapeKind::Square,
@@ -348,12 +348,12 @@ pub struct EllipseElem {
 impl Layout for EllipseElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
         layout(
-            vt,
+            vm,
             styles,
             regions,
             ShapeKind::Ellipse,
@@ -455,12 +455,12 @@ pub struct CircleElem {
 impl Layout for CircleElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
         layout(
-            vt,
+            vm,
             styles,
             regions,
             ShapeKind::Circle,
@@ -479,7 +479,7 @@ impl Layout for CircleElem {
 /// Layout a shape.
 #[allow(clippy::too_many_arguments)]
 fn layout(
-    vt: &mut Vt,
+    vm: &mut Vm,
     styles: StyleChain,
     regions: Regions,
     kind: ShapeKind,
@@ -507,7 +507,7 @@ fn layout(
         let child = child.clone().padded(inset.map(|side| side.map(Length::from)));
         let expand = sizing.as_ref().map(Smart::is_custom);
         let pod = Regions::one(region, expand);
-        frame = child.layout(vt, styles, pod)?.into_frame();
+        frame = child.layout(vm, styles, pod)?.into_frame();
 
         // Enforce correct size.
         *frame.size_mut() = expand.select(region, frame.size());
@@ -518,7 +518,7 @@ fn layout(
             frame.set_size(Size::splat(frame.size().max_by_side()));
             let length = frame.size().max_by_side().min(region.min_by_side());
             let pod = Regions::one(Size::splat(length), Axes::splat(true));
-            frame = child.layout(vt, styles, pod)?.into_frame();
+            frame = child.layout(vm, styles, pod)?.into_frame();
         }
 
         // Enforce correct size again.

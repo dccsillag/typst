@@ -105,7 +105,7 @@ pub struct StrongElem {
 }
 
 impl Show for StrongElem {
-    fn show(&self, _: &mut Vt, styles: StyleChain) -> SourceResult<Content> {
+    fn show(&self, _: &mut Vm, styles: StyleChain) -> SourceResult<Content> {
         Ok(self.body().styled(TextElem::set_delta(Delta(self.delta(styles)))))
     }
 }
@@ -165,7 +165,7 @@ pub struct EmphElem {
 }
 
 impl Show for EmphElem {
-    fn show(&self, _: &mut Vt, _: StyleChain) -> SourceResult<Content> {
+    fn show(&self, _: &mut Vm, _: StyleChain) -> SourceResult<Content> {
         Ok(self.body().styled(TextElem::set_emph(Toggle)))
     }
 }

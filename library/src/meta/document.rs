@@ -43,7 +43,7 @@ impl Construct for DocumentElem {
 
 impl LayoutRoot for DocumentElem {
     /// Layout the document into a sequence of frames, one per page.
-    fn layout_root(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Document> {
+    fn layout_root(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Document> {
         let mut pages = vec![];
 
         for mut child in &self.children() {
@@ -55,7 +55,7 @@ impl LayoutRoot for DocumentElem {
             }
 
             if let Some(page) = child.to::<PageElem>() {
-                let fragment = page.layout(vt, styles)?;
+                let fragment = page.layout(vm, styles)?;
                 pages.extend(fragment);
             } else {
                 bail!(child.span(), "unexpected document child");

@@ -39,12 +39,12 @@ pub struct MoveElem {
 impl Layout for MoveElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
         let pod = Regions::one(regions.base(), Axes::splat(false));
-        let mut frame = self.body().layout(vt, styles, pod)?.into_frame();
+        let mut frame = self.body().layout(vm, styles, pod)?.into_frame();
         let delta = Axes::new(self.dx(styles), self.dy(styles)).resolve(styles);
         let delta = delta.zip(regions.base()).map(|(d, s)| d.relative_to(s));
         frame.translate(delta.to_point());
@@ -107,12 +107,12 @@ pub struct RotateElem {
 impl Layout for RotateElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
         let pod = Regions::one(regions.base(), Axes::splat(false));
-        let mut frame = self.body().layout(vt, styles, pod)?.into_frame();
+        let mut frame = self.body().layout(vm, styles, pod)?.into_frame();
         let origin = self.origin(styles).unwrap_or(Align::CENTER_HORIZON);
         let Axes { x, y } = origin.zip(frame.size()).map(|(o, s)| o.position(s));
         let ts = Transform::translate(x, y)
@@ -175,12 +175,12 @@ pub struct ScaleElem {
 impl Layout for ScaleElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
         let pod = Regions::one(regions.base(), Axes::splat(false));
-        let mut frame = self.body().layout(vt, styles, pod)?.into_frame();
+        let mut frame = self.body().layout(vm, styles, pod)?.into_frame();
         let origin = self.origin(styles).unwrap_or(Align::CENTER_HORIZON);
         let Axes { x, y } = origin.zip(frame.size()).map(|(o, s)| o.position(s));
         let transform = Transform::translate(x, y)

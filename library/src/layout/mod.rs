@@ -49,8 +49,11 @@ use std::mem;
 
 use typed_arena::Arena;
 use typst::diag::SourceResult;
+use typst::eval::Route;
+use typst::eval::Scopes;
 use typst::eval::Tracer;
 use typst::model::{applicable, realize, StyleVecBuilder};
+use typst::syntax::SourceId;
 
 use crate::math::{EquationElem, LayoutMath};
 use crate::meta::DocumentElem;
@@ -64,11 +67,11 @@ use crate::visualize::{CircleElem, EllipseElem, ImageElem, RectElem, SquareElem}
 /// Root-level layout.
 pub trait LayoutRoot {
     /// Layout into one frame per page.
-    fn layout_root(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Document>;
+    fn layout_root(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Document>;
 }
 
 impl LayoutRoot for Content {
-    fn layout_root(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Document> {
+    fn layout_root(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Document> {
         #[comemo::memoize]
         fn cached(
             content: &Content,
@@ -78,21 +81,25 @@ impl LayoutRoot for Content {
             introspector: Tracked<Introspector>,
             styles: StyleChain,
         ) -> SourceResult<Document> {
-            let mut vt = Vt { world, tracer, provider, introspector };
+            let route = Route::default();
+            let id = SourceId::detached();
+            let scopes = Scopes::new(Some(world.library()));
+            let mut vm =
+                Vm::new(world, tracer, provider, introspector, route.track(), id, scopes);
             let scratch = Scratch::default();
-            let (realized, styles) = realize_root(&mut vt, &scratch, content, styles)?;
+            let (realized, styles) = realize_root(&mut vm, &scratch, content, styles)?;
             realized
                 .with::<dyn LayoutRoot>()
                 .unwrap()
-                .layout_root(&mut vt, styles)
+                .layout_root(&mut vm, styles)
         }
 
         cached(
             self,
-            vt.world,
-            TrackedMut::reborrow_mut(&mut vt.tracer),
-            TrackedMut::reborrow_mut(&mut vt.provider),
-            vt.introspector,
+            vm.world,
+            TrackedMut::reborrow_mut(&mut vm.tracer),
+            TrackedMut::reborrow_mut(&mut vm.provider),
+            vm.introspector,
             styles,
         )
     }
@@ -103,7 +110,7 @@ pub trait Layout {
     /// Layout into one frame per region.
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment>;
@@ -114,13 +121,13 @@ pub trait Layout {
     /// be valid.
     fn measure(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
-        vt.provider.save();
-        let result = self.layout(vt, styles, regions);
-        vt.provider.restore();
+        vm.provider.save();
+        let result = self.layout(vm, styles, regions);
+        vm.provider.restore();
         result
     }
 }
@@ -128,7 +135,7 @@ pub trait Layout {
 impl Layout for Content {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -142,21 +149,25 @@ impl Layout for Content {
             styles: StyleChain,
             regions: Regions,
         ) -> SourceResult<Fragment> {
-            let mut vt = Vt { world, tracer, provider, introspector };
+            let route = Route::default();
+            let id = SourceId::detached();
+            let scopes = Scopes::new(Some(world.library()));
+            let mut vm =
+                Vm::new(world, tracer, provider, introspector, route.track(), id, scopes);
             let scratch = Scratch::default();
-            let (realized, styles) = realize_block(&mut vt, &scratch, content, styles)?;
+            let (realized, styles) = realize_block(&mut vm, &scratch, content, styles)?;
             realized
                 .with::<dyn Layout>()
                 .unwrap()
-                .layout(&mut vt, styles, regions)
+                .layout(&mut vm, styles, regions)
         }
 
         cached(
             self,
-            vt.world,
-            TrackedMut::reborrow_mut(&mut vt.tracer),
-            TrackedMut::reborrow_mut(&mut vt.provider),
-            vt.introspector,
+            vm.world,
+            TrackedMut::reborrow_mut(&mut vm.tracer),
+            TrackedMut::reborrow_mut(&mut vm.provider),
+            vm.introspector,
             styles,
             regions,
         )
@@ -165,7 +176,7 @@ impl Layout for Content {
 
 /// Realize into an element that is capable of root-level layout.
 fn realize_root<'a>(
-    vt: &mut Vt,
+    vm: &mut Vm,
     scratch: &'a Scratch<'a>,
     content: &'a Content,
     styles: StyleChain<'a>,
@@ -174,7 +185,7 @@ fn realize_root<'a>(
         return Ok((content.clone(), styles));
     }
 
-    let mut builder = Builder::new(vt, scratch, true);
+    let mut builder = Builder::new(vm, scratch, true);
     builder.accept(content, styles)?;
     builder.interrupt_page(Some(styles))?;
     let (pages, shared) = builder.doc.unwrap().pages.finish();
@@ -183,7 +194,7 @@ fn realize_root<'a>(
 
 /// Realize into an element that is capable of block-level layout.
 fn realize_block<'a>(
-    vt: &mut Vt,
+    vm: &mut Vm,
     scratch: &'a Scratch<'a>,
     content: &'a Content,
     styles: StyleChain<'a>,
@@ -201,7 +212,7 @@ fn realize_block<'a>(
         return Ok((content.clone(), styles));
     }
 
-    let mut builder = Builder::new(vt, scratch, false);
+    let mut builder = Builder::new(vm, scratch, false);
     builder.accept(content, styles)?;
     builder.interrupt_par()?;
     let (children, shared) = builder.flow.0.finish();
@@ -211,7 +222,7 @@ fn realize_block<'a>(
 /// Builds a document or a flow element from content.
 struct Builder<'a, 'v, 't> {
     /// The virtual typesetter.
-    vt: &'v mut Vt<'t>,
+    vm: &'v mut Vm<'t>,
     /// Scratch arenas for building.
     scratch: &'a Scratch<'a>,
     /// The current document building state.
@@ -234,9 +245,9 @@ struct Scratch<'a> {
 }
 
 impl<'a, 'v, 't> Builder<'a, 'v, 't> {
-    fn new(vt: &'v mut Vt<'t>, scratch: &'a Scratch<'a>, top: bool) -> Self {
+    fn new(vm: &'v mut Vm<'t>, scratch: &'a Scratch<'a>, top: bool) -> Self {
         Self {
-            vt,
+            vm,
             scratch,
             doc: top.then(DocBuilder::default),
             flow: FlowBuilder::default(),
@@ -255,7 +266,7 @@ impl<'a, 'v, 't> Builder<'a, 'v, 't> {
                 self.scratch.content.alloc(EquationElem::new(content.clone()).pack());
         }
 
-        if let Some(realized) = realize(self.vt, content, styles)? {
+        if let Some(realized) = realize(self.vm, content, styles)? {
             let stored = self.scratch.content.alloc(realized);
             return self.accept(stored, styles);
         }

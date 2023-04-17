@@ -104,11 +104,11 @@ impl BibliographyElem {
     }
 
     /// Whether the bibliography contains the given key.
-    pub fn has(vt: &Vt, key: &str) -> bool {
-        vt.introspector
+    pub fn has(vm: &Vm, key: &str) -> bool {
+        vm.introspector
             .query(&Self::func().select())
             .into_iter()
-            .flat_map(|elem| load(vt.world, &elem.to::<Self>().unwrap().path()))
+            .flat_map(|elem| load(vm.world, &elem.to::<Self>().unwrap().path()))
             .flatten()
             .any(|entry| entry.key() == key)
     }
@@ -133,14 +133,14 @@ impl BibliographyElem {
 }
 
 impl Synthesize for BibliographyElem {
-    fn synthesize(&mut self, _vt: &mut Vt, styles: StyleChain) -> SourceResult<()> {
+    fn synthesize(&mut self, _vm: &mut Vm, styles: StyleChain) -> SourceResult<()> {
         self.push_style(self.style(styles));
         Ok(())
     }
 }
 
 impl Show for BibliographyElem {
-    fn show(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Content> {
+    fn show(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Content> {
         const COLUMN_GUTTER: Em = Em::new(0.65);
         const INDENT: Em = Em::new(1.5);
 
@@ -159,11 +159,11 @@ impl Show for BibliographyElem {
             );
         }
 
-        if !vt.introspector.init() {
+        if !vm.introspector.init() {
             return Ok(Content::sequence(seq));
         }
 
-        let works = Works::new(vt).at(self.span())?;
+        let works = Works::new(vm).at(self.span())?;
 
         let row_gutter = BlockElem::below_in(styles).amount();
         if works.references.iter().any(|(prefix, _)| prefix.is_some()) {
@@ -327,7 +327,7 @@ pub struct CiteElem {
 }
 
 impl Synthesize for CiteElem {
-    fn synthesize(&mut self, _vt: &mut Vt, styles: StyleChain) -> SourceResult<()> {
+    fn synthesize(&mut self, _vm: &mut Vm, styles: StyleChain) -> SourceResult<()> {
         self.push_supplement(self.supplement(styles));
         self.push_brackets(self.brackets(styles));
         self.push_style(self.style(styles));
@@ -336,12 +336,12 @@ impl Synthesize for CiteElem {
 }
 
 impl Show for CiteElem {
-    fn show(&self, vt: &mut Vt, _: StyleChain) -> SourceResult<Content> {
-        if !vt.introspector.init() {
+    fn show(&self, vm: &mut Vm, _: StyleChain) -> SourceResult<Content> {
+        if !vm.introspector.init() {
             return Ok(Content::empty());
         }
 
-        let works = Works::new(vt).at(self.span())?;
+        let works = Works::new(vm).at(self.span())?;
         let location = self.0.location().unwrap();
         works
             .citations
@@ -391,9 +391,9 @@ struct Works {
 
 impl Works {
     /// Prepare all things need to cite a work or format a bibliography.
-    fn new(vt: &Vt) -> StrResult<Arc<Self>> {
-        let bibliography = BibliographyElem::find(vt.introspector)?;
-        let citations = vt
+    fn new(vm: &Vm) -> StrResult<Arc<Self>> {
+        let bibliography = BibliographyElem::find(vm.introspector)?;
+        let citations = vm
             .introspector
             .query(&Selector::Or(eco_vec![
                 RefElem::func().select(),
@@ -405,7 +405,7 @@ impl Works {
                 _ => elem.to::<CiteElem>().unwrap().clone(),
             })
             .collect();
-        Ok(create(vt.world, bibliography, citations))
+        Ok(create(vm.world, bibliography, citations))
     }
 }
 

@@ -153,9 +153,9 @@ pub fn call(
         Value::Dyn(dynamic) => {
             if let Some(location) = dynamic.downcast::<Location>() {
                 match method {
-                    "page" => vm.vt.introspector.page(*location).into(),
-                    "position" => vm.vt.introspector.position(*location).into(),
-                    "page-numbering" => vm.vt.introspector.page_numbering(*location),
+                    "page" => vm.introspector.page(*location).into(),
+                    "position" => vm.introspector.position(*location).into(),
+                    "page-numbering" => vm.introspector.page_numbering(*location),
                     _ => return missing(),
                 }
             } else if let Some(selector) = dynamic.downcast::<Selector>() {

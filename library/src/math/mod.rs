@@ -162,7 +162,7 @@ pub struct EquationElem {
 }
 
 impl Synthesize for EquationElem {
-    fn synthesize(&mut self, _vt: &mut Vt, styles: StyleChain) -> SourceResult<()> {
+    fn synthesize(&mut self, _vm: &mut Vm, styles: StyleChain) -> SourceResult<()> {
         self.push_block(self.block(styles));
         self.push_numbering(self.numbering(styles));
         Ok(())
@@ -170,7 +170,7 @@ impl Synthesize for EquationElem {
 }
 
 impl Show for EquationElem {
-    fn show(&self, _: &mut Vt, styles: StyleChain) -> SourceResult<Content> {
+    fn show(&self, _: &mut Vm, styles: StyleChain) -> SourceResult<Content> {
         let mut realized = self.clone().pack().guarded(Guard::Base(Self::func()));
         if self.block(styles) {
             realized = realized.aligned(Axes::with_x(Some(Align::Center.into())))
@@ -192,7 +192,7 @@ impl Finalize for EquationElem {
 impl Layout for EquationElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -202,7 +202,7 @@ impl Layout for EquationElem {
 
         // Find a math font.
         let variant = variant(styles);
-        let world = vt.world;
+        let world = vm.world;
         let Some(font) = families(styles)
             .find_map(|family| {
                 let id = world.book().select(family.as_str(), variant)?;
@@ -214,7 +214,7 @@ impl Layout for EquationElem {
             bail!(self.span(), "current font does not support math");
         };
 
-        let mut ctx = MathContext::new(vt, styles, regions, &font, block);
+        let mut ctx = MathContext::new(vm, styles, regions, &font, block);
         let mut frame = ctx.layout_frame(self)?;
 
         if block {
@@ -222,7 +222,7 @@ impl Layout for EquationElem {
                 let pod = Regions::one(regions.base(), Axes::splat(false));
                 let counter = Counter::of(Self::func())
                     .display(Some(numbering), false)
-                    .layout(vt, styles, pod)?
+                    .layout(vm, styles, pod)?
                     .into_frame();
 
                 let width = if regions.size.x.is_finite() {
@@ -297,7 +297,7 @@ impl LocalName for EquationElem {
 impl Refable for EquationElem {
     fn reference(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         supplement: Option<Content>,
         lang: Lang,
     ) -> SourceResult<Content> {
@@ -317,8 +317,8 @@ impl Refable for EquationElem {
 
         // we get the counter and display it
         let numbers = Counter::of(Self::func())
-            .at(vt, self.0.location().expect("missing location"))?
-            .display(vt, &numbering.trimmed())?;
+            .at(vm, self.0.location().expect("missing location"))?
+            .display(vm, &numbering.trimmed())?;
 
         Ok(supplement + numbers)
     }

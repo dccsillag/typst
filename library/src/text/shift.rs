@@ -45,12 +45,12 @@ pub struct SubElem {
 }
 
 impl Show for SubElem {
-    fn show(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Content> {
+    fn show(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Content> {
         let body = self.body();
         let mut transformed = None;
         if self.typographic(styles) {
             if let Some(text) = search_text(&body, true) {
-                if is_shapable(vt, &text, styles) {
+                if is_shapable(vm, &text, styles) {
                     transformed = Some(TextElem::packed(text));
                 }
             }
@@ -107,12 +107,12 @@ pub struct SuperElem {
 }
 
 impl Show for SuperElem {
-    fn show(&self, vt: &mut Vt, styles: StyleChain) -> SourceResult<Content> {
+    fn show(&self, vm: &mut Vm, styles: StyleChain) -> SourceResult<Content> {
         let body = self.body();
         let mut transformed = None;
         if self.typographic(styles) {
             if let Some(text) = search_text(&body, false) {
-                if is_shapable(vt, &text, styles) {
+                if is_shapable(vm, &text, styles) {
                     transformed = Some(TextElem::packed(text));
                 }
             }
@@ -148,8 +148,8 @@ fn search_text(content: &Content, sub: bool) -> Option<EcoString> {
 
 /// Checks whether the first retrievable family contains all code points of the
 /// given string.
-fn is_shapable(vt: &Vt, text: &str, styles: StyleChain) -> bool {
-    let world = vt.world;
+fn is_shapable(vm: &Vm, text: &str, styles: StyleChain) -> bool {
+    let world = vm.world;
     for family in TextElem::font_in(styles) {
         if let Some(font) = world
             .book()

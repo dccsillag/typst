@@ -156,7 +156,7 @@ pub struct EnumElem {
 impl Layout for EnumElem {
     fn layout(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         styles: StyleChain,
         regions: Regions,
     ) -> SourceResult<Fragment> {
@@ -180,7 +180,7 @@ impl Layout for EnumElem {
 
             let resolved = if full {
                 parents.push(number);
-                let content = numbering.apply_vt(vt, &parents)?.display();
+                let content = numbering.apply_vt(vm, &parents)?.display();
                 parents.pop();
                 content
             } else {
@@ -188,7 +188,7 @@ impl Layout for EnumElem {
                     Numbering::Pattern(pattern) => {
                         TextElem::packed(pattern.apply_kth(parents.len(), number))
                     }
-                    other => other.apply_vt(vt, &[number])?.display(),
+                    other => other.apply_vt(vm, &[number])?.display(),
                 }
             };
 
@@ -200,7 +200,7 @@ impl Layout for EnumElem {
         }
 
         let layouter = GridLayouter::new(
-            vt,
+            vm,
             Axes::with_x(&[
                 Sizing::Rel(indent.into()),
                 Sizing::Auto,

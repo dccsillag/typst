@@ -97,7 +97,7 @@ pub struct HeadingElem {
 }
 
 impl Synthesize for HeadingElem {
-    fn synthesize(&mut self, _vt: &mut Vt, styles: StyleChain) -> SourceResult<()> {
+    fn synthesize(&mut self, _vm: &mut Vm, styles: StyleChain) -> SourceResult<()> {
         self.push_level(self.level(styles));
         self.push_numbering(self.numbering(styles));
         self.push_supplement(self.supplement(styles));
@@ -108,7 +108,7 @@ impl Synthesize for HeadingElem {
 }
 
 impl Show for HeadingElem {
-    fn show(&self, _: &mut Vt, styles: StyleChain) -> SourceResult<Content> {
+    fn show(&self, _: &mut Vm, styles: StyleChain) -> SourceResult<Content> {
         let mut realized = self.body();
         if let Some(numbering) = self.numbering(styles) {
             realized = Counter::of(Self::func())
@@ -160,7 +160,7 @@ cast_from_value! {
 impl Refable for HeadingElem {
     fn reference(
         &self,
-        vt: &mut Vt,
+        vm: &mut Vm,
         supplement: Option<Content>,
         lang: Lang,
     ) -> SourceResult<Content> {
@@ -172,7 +172,7 @@ impl Refable for HeadingElem {
                 Smart::Auto => TextElem::packed(self.local_name(lang)),
                 Smart::Custom(None) => Content::empty(),
                 Smart::Custom(Some(supplement)) => {
-                    supplement.resolve(vt, std::iter::once(Value::from(self.clone())))?
+                    supplement.resolve(vm, std::iter::once(Value::from(self.clone())))?
                 }
             }
         };
@@ -189,8 +189,8 @@ impl Refable for HeadingElem {
 
         // Get the counter and display it.
         let numbers = Counter::of(Self::func())
-            .at(vt, self.0.location().unwrap())?
-            .display(vt, &numbering.trimmed())?;
+            .at(vm, self.0.location().unwrap())?
+            .display(vm, &numbering.trimmed())?;
 
         Ok(supplement + numbers)
     }
@@ -207,7 +207,7 @@ impl Refable for HeadingElem {
         Counter::of(Self::func())
     }
 
-    fn outline(&self, vt: &mut Vt, _: Lang) -> SourceResult<Option<Content>> {
+    fn outline(&self, vm: &mut Vm, _: Lang) -> SourceResult<Option<Content>> {
         // Check whether the heading is outlined.
         if !self.outlined(StyleChain::default()) {
             return Ok(None);
@@ -217,8 +217,8 @@ impl Refable for HeadingElem {
         let mut start = self.body();
         if let Some(numbering) = self.numbering(StyleChain::default()) {
             let numbers = Counter::of(HeadingElem::func())
-                .at(vt, self.0.location().unwrap())?
-                .display(vt, &numbering)?;
+                .at(vm, self.0.location().unwrap())?
+                .display(vm, &numbering)?;
             start = numbers + SpaceElem::new().pack() + start;
         };
 

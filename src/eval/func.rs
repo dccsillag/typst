@@ -11,7 +11,7 @@ use super::{
     cast_to_value, Args, CastInfo, Eval, Flow, Route, Scope, Scopes, Tracer, Value, Vm,
 };
 use crate::diag::{bail, SourceResult};
-use crate::model::{ElemFunc, Introspector, StabilityProvider, Vt};
+use crate::model::{ElemFunc, Introspector, StabilityProvider};
 use crate::syntax::ast::{self, AstNode, Expr, Ident};
 use crate::syntax::{SourceId, Span, SyntaxNode};
 use crate::World;
@@ -74,7 +74,16 @@ impl Func {
     }
 
     /// Call the function with the given arguments.
-    pub fn call_vm(&self, vm: &mut Vm, mut args: Args) -> SourceResult<Value> {
+    pub fn call_vm(
+        &self,
+        vm: &mut Vm,
+        args: impl IntoIterator<Item = Value>,
+    ) -> SourceResult<Value> {
+        self.call_vm_args(vm, Args::new(self.span(), args))
+    }
+
+    /// Call the function with the given arguments.
+    pub fn call_vm_args(&self, vm: &mut Vm, mut args: Args) -> SourceResult<Value> {
         match &self.repr {
             Repr::Native(native) => {
                 let value = (native.func)(vm, &mut args)?;
@@ -96,32 +105,18 @@ impl Func {
                     self,
                     vm.world(),
                     route,
-                    TrackedMut::reborrow_mut(&mut vm.vt.tracer),
-                    TrackedMut::reborrow_mut(&mut vm.vt.provider),
-                    vm.vt.introspector,
+                    TrackedMut::reborrow_mut(&mut vm.tracer),
+                    TrackedMut::reborrow_mut(&mut vm.provider),
+                    vm.introspector,
                     vm.depth + 1,
                     args,
                 )
             }
             Repr::With(arc) => {
                 args.items = arc.1.items.iter().cloned().chain(args.items).collect();
-                arc.0.call_vm(vm, args)
+                arc.0.call_vm_args(vm, args)
             }
         }
-    }
-
-    /// Call the function with a Vt.
-    pub fn call_vt(
-        &self,
-        vt: &mut Vt,
-        args: impl IntoIterator<Item = Value>,
-    ) -> SourceResult<Value> {
-        let route = Route::default();
-        let id = SourceId::detached();
-        let scopes = Scopes::new(None);
-        let mut vm = Vm::new(vt.reborrow_mut(), route.track(), id, scopes);
-        let args = Args::new(self.span(), args);
-        self.call_vm(&mut vm, args)
     }
 
     /// Apply the given arguments to the function.
@@ -301,8 +296,15 @@ impl Closure {
         scopes.top = closure.captured.clone();
 
         // Evaluate the body.
-        let vt = Vt { world, tracer, provider, introspector };
-        let mut vm = Vm::new(vt, route, closure.location, scopes);
+        let mut vm = Vm::new(
+            world,
+            tracer,
+            provider,
+            introspector,
+            route,
+            closure.location,
+            scopes,
+        );
         vm.depth = depth;
 
         // Provide the closure itself for recursive calls.
